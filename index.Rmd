@@ -1,0 +1,200 @@
+---
+title: "Detekce mluvené řeči v jazyce R"
+output: html_notebook
+---
+### Prototyp chytrého řešení pro pomoc lidem se sluchovým postižením
+
+Detekce řečové aktivity hraje velmi důležitou roli v oblasti zpracování mluvené řeči. Detektory řečové aktivity jsou využívány v mnoha různých oblastech vědy, ale dnes i v průmyslových aplikacích. Detektory řečové aktivity jsou používány v průběhu rozpoznávání řeči nebo v algoritmech zvýrazňování řeči. Jiné aplikace mohou být z oblasti komunikace. Podobný přístup řeší VoIP, kde detektory řečové aktivity slouží pro snížení nutné přenosové kapacity. To je dosaženo nepřenášením paketů obsahujících ticho. Bylo také ukázáno, že detektory řečové aktivity mohou přispět k zvětšení efektivity rozpoznávání řeči.
+
+Rozpoznávání mluvené řeči je ve vyvíjeném prototypu rozděleno na dva kroky. První krok se odehrává na klientovi a druhá část na serveru. Před implementací serverové části byla provedena analýza veřejně dostupných technologii pro zpracování zvuku. Jako vhodná technologie byla vybrána služba postavená na platformě Google Cloud. Jedná se o řešení Google Cloud Speech API. Pro začátek výzkumu je naprosto dostačující. Dalším krokem bude testování konkurentní služby od společnosti IBM. Jedná se o službu IBM Watson Speech To Text.
+
+### Aktustické vnímání řeči
+Člověk je schopen vnímat zvuky v rozsahu kmitočtů od přibližně 20 Hz do 20 kHz a v rozsahu intenzity cca 0 až 130 dB (tzv. plocha slyšení). Normální řeč však leží v podstatně užším pásmu - přibližně mezi 180 Hz až 6 kHz a 30 až 80 dB. Dobrá srozumitelnost se dosáhne při přenosu řeči v pásmu od 300 Hz do 5 kHz. Pro nejběžnější konverzaci stačí dokonce přenos v pásmu od 300 do 2,5 kHz.
+
+### Problémy rozpoznávání řeči
+Úloha rozpoznávání řeči se potýká s mnoha problémy, které vyplývají ze samotné povahy lidské řeči. Ve chvíli kdy člověk mluví, nikdy nevysloví stejné slovo dvakrát totožným způsobem. Je to ovlivněno mnoha faktory. Jedná se o zdůrazňování slov, odlišné vyslovování slov na začátku a na konci věty, různé melodie různých typů vět (oznamovací vs. tázací), vliv předchozích a následujících slov ve větě, emoce, náladu, případně zdravotní stav člověka.
+Problémy mohou nastat též při určování hranic mezi slovy. Člověk nevyslovuje slova jako zřetelně oddělené jednotky, slova naopak úzce navazují a např. neslabičné předložky splývají s jiným slovem úplně. Akustická informace bývá nedostatečná a zpravidla je potřeba využít kontextu slov a dodat hlubší jazykové znalosti – syntaktické, případně sémantické.
+Programy, které si kladou za cíl rozpoznávat spontánní mluvenou řeč, se musejí vypořádat se skutečností, že struktura spontánní řeči se značně liší od čtení připraveného textu, která má co do jazykové struktury spíše povahu psaného slova. Věty vyslovené v rámci spontánního projevu často neodpovídají syntaktickým pravidlům jazyka. Projevuje se v nich koktání, zadrhávání, opakování slov, slovní doplňky, věty mohou být neúplné.
+Je tedy zřejmé, že problematika detekce chyb v automatickém přepisu řeči je aktuální. Označování problematických úseků přepisu může být využito např. pro vylepšení dialogových systémů. Jedná se o počítačové systémy, které poskytují člověku informace na základě hlasové komunikace, zpravidla telefonicky.
+
+### Princip HMM
+Detekce probíhá na základě modelování částí řeči pomocí jednoho nebo i více HMM. Jeden model většinou odpovídá úsekům řeči a druhý úsekům šumového pozadí. Bude použit pojem dlouhodobý a krátkodobý segment. Z krátkodobého segmentu řeči je vypočítán jeden vektor parametrů. Pojmem dlouhodobý segment se myslí posloupnost vektorů parametrů. V dlouhodobých segmentech stejné nebo rostoucí délky se provádí výpočet pravděpodobnosti, zda HMM generuje příslušný úsek šumu nebo řeči. Výstupem jsou vektory pravděpodobností příslušné ke každému řečovému rámci. Je-li použit pouze jeden model – model šumu, může být prahována přímo tato pravděpodobnost. Jsou-li použity dva modely – model šumu i model řeči, jsou pravděpodobnosti nejprve vzájemně odečteny a výsledný rozdíl je prahován. Tyto vektory, které jsou prahovány, jsou označeny jako kriteriální funkce.
+
+### Práce s jazykem R
+Pro práci se zvukovými stopami jsou využívány knihovny
+
+- audio,
+- TuneR,
+- SeeWave,
+- HMM
+
+```{r}
+install.packages("audio")
+install.packages("tuneR")
+install.packages("seewave")
+install.packages("HMM")
+```
+
+```{r}
+library(audio)
+library(tuneR)
+library(seewave)
+library(HMM)
+```
+
+Pro ukázku, jakým způsobem se pracuje se zvukovou stopou a co knihovny nabízejí
+```{r}
+song<-readWave("./record.wav")
+play(song)
+```
+
+Pokud vznikl u přehrávání problém je nutné vykonat následující příkaz.
+Jedná se ochybu `Error in play.default(zvuk) : long vectors not supported yet: au.c:137`
+
+Jedná se o využití výchozího zvukového přehrávače.
+```{r}
+setWavPlayer('/usr/bin/afplay')
+```
+
+```{r}
+plot(song)
+```
+```{r}
+print(song)
+```
+
+```{r}
+spec(song)
+```
+
+```{r}
+spectro(song)
+```
+
+```{r}
+timer(song)
+```
+
+```{r}
+oscillo(song)
+```
+
+### Databáze řeči TIMIT
+Aby nebylo vytvářeno něco, co již existuje, a mohli jsme se rychle zaměřit na zkoumanou problematiku, byla použita již vytvořená databáze audio nahrávek TIMIT. Databáze TIMIT obsahuje mnoho promluv od mnoha mluvčích, celkově přibližně 5400. Z této databáze bylo vybráno 300 různých promluv od co nejvíce mluvčích, rovnoměrně zastoupených jak ženami, tak muži. 
+
+TIMIT Acoustic-Phonetic Continous Speech Corpus (LDC) je databáze čtené řeči, která je primárně určena pro studium akusticko-fonetických jevů a pro testování systémů automatického rozpoznávání řeči. Svým objemem lze TIMIT zařadit do kategorie korpusů s velkým počtem řečníků (obvykle obsahují řeč od více než 50 řečníků). Na této databázi se podílelo 630 osob, přičemž každá přispěla přečtením a nahráním 10 foneticky bohatých vět. Nahrávky jsou v osmi hlavních dialektech americké angličtiny. Struktura tohoto korpusu je poměrně specifická. Každá nahrávka je charakterizována následujícími soubory:
+
+- zvukový soubor ve formátu PCM, 
+- soubor s příponou .PHN obsahující časový fonetický přepis, zapsaný v abecedě Arpabet, 
+- textový soubor obsahující přepis nahrávky ve formátu .TXT, 
+- soubor s příponou .LAB obsahující přepis slov jejich vymezením v nahrávce, 
+- soubor s příponou .WRD obsahující s vymezení jednotlivých slov v nahrávce.
+
+#### Poznámka pro vývoj (struktura CSV)
+- .WRD - od do slovo
+- .PHM - od do phoném
+- .TXT - od do věta
+
+## Postup implementace
+
+### 1. Projít databázi TIMIT a načíst, zvuk + informace o stopě
+```{r}
+path <- "/Users/AlesB/R/timit"
+files <- read.csv(paste(path, "allfilelist.txt", sep = "/"), header=FALSE)$V1
+
+wrdFiles <- lapply(files, function(file) {
+  wrdFile <- read.csv(paste(path, paste(file, "wrd", sep = "."), sep = "/"), header=FALSE, sep = " ", as.is = TRUE)
+})
+
+wavFiles <- lapply(files, function(file) {
+  wavFile <- readWave(paste(path, paste(file, "wav", sep = "."), sep = "/"))
+})
+```
+
+### 2. Definice funkce pro rozdělení zvukové stopy na části po kroku v milisekundách
+```{r}
+divideSound <- function(sound, stepInMs = 1000) {
+  numOfValues <- sound@samp.rate * (stepInMs / 1000)
+  numOfParts <- ceiling(length(sound@left) / numOfValues)
+  fixedSound <- c(sound@left, rep.int(0, times = numOfValues * numOfParts - length(sound@left)))
+  return(matrix(fixedSound, nrow = numOfParts, ncol = numOfValues, byrow = TRUE))
+}
+```
+
+### 3. Definice funkce pro rozdělení textu na části na základě zvukové stopy po kroku v milisekundách
+```{r}
+divideText <- function(sound, text, stepInMs = 1000) {
+  numOfValues <- sound@samp.rate * (stepInMs / 1000)
+  numOfParts <- ceiling(length(sound@left) / numOfValues)
+  A <- matrix(, nrow = numOfParts, ncol = 1)
+  for (part in 1:nrow(A)) {
+    value <- subset(
+      text,
+      (V1 >= (part - 1) * stepInMs & V1 < (part * stepInMs)) 
+      | (V1 <= (part - 1) * stepInMs &  V2 >= (part - 1) * stepInMs)
+    )$V3
+    A[part,] <- value[1]
+  }
+  return(A)
+}
+```
+
+### 4. Definice mapy a mapyZvuku
+```{r}
+mapa <- data.frame()
+mapaZvuku <- list()
+```
+
+### 5. Definice délky kroku v milisekundách + rozdělení veěkerých informací a zvukových stop na slova a krátké zvukové úseky
+```{r}
+step <- 2000
+index <- 1
+
+for (i in 1:length(files)) {
+  zvuk <- wavFiles[[i]] 
+  text <- wrdFiles[[i]]
+  
+  text$V1  <- round(text$V1 / zvuk@samp.rate * 1000)
+  text$V2  <- round(text$V2 / zvuk@samp.rate * 1000)
+  
+  castiZvuku<-divideSound(zvuk, stepInMs = step)
+  castiTextu<-divideText(zvuk, text, stepInMs = step)
+  
+  for (j in 1:nrow(castiZvuku)) {
+    mapa[index,1] <- castiTextu[[j]]
+    mapa[index,2] <- zvuk@samp.rate
+    mapa[index,3] <- zvuk@bit
+    mapaZvuku[[index]] <- castiZvuku[j,]
+    
+    index <- index + 1
+  }
+}
+```
+
+### 6. Výběr náhodného úseku a práce s ním (přehrání úseku)
+```{r}
+ktery <- 62
+
+zvukInfo <- mapa[ktery,] 
+zvukDetail <- mapaZvuku[ktery]
+
+print(zvukInfo)
+play(Wave(zvukDetail, samp.rate = zvukInfo$V2, bit = zvukInfo$V3))
+```
+
+### 7. Hledání slova
+```{r}
+print(mapa)
+print(which(mapa$V1 == "survive"))
+```
+
+
+### 8. Příprava HMM
+```{r}
+hmm <- initHMM(c("HLAS","SUM"),c("H","S"), transProbs=matrix(c(.9,.1,.1,.9),2), emissionProbs=matrix(c(.5,.51,.5,.49),2))
+print(hmm)
+```
+
+rozsekat
+namapovat
+natrenovat
