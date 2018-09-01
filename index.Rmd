@@ -99,7 +99,7 @@ TIMIT Acoustic-Phonetic Continous Speech Corpus (LDC) je databáze čtené řeč
 
 ### 1. Projít databázi TIMIT a načíst, zvuk + informace o stopě
 ```{r}
-path <- "/Users/AlesB/R/timit"
+path <- "./timit"
 files <- read.csv(paste(path, "allfilelist.txt", sep = "/"), header=FALSE)$V1
 
 wrdFiles <- lapply(files, function(file) {
