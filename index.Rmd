@@ -147,7 +147,7 @@ mapaZvuku <- list()
 
 ### 5. Definice délky kroku v milisekundách + rozdělení veěkerých informací a zvukových stop na slova a krátké zvukové úseky
 ```{r}
-step <- 2000
+step <- 50
 index <- 1
 
 for (i in 1:length(files)) {
@@ -164,6 +164,7 @@ for (i in 1:length(files)) {
     mapa[index,1] <- castiTextu[[j]]
     mapa[index,2] <- zvuk@samp.rate
     mapa[index,3] <- zvuk@bit
+    mapa[index,4] <- i
     mapaZvuku[[index]] <- castiZvuku[j,]
     
     index <- index + 1
@@ -175,7 +176,7 @@ for (i in 1:length(files)) {
 ```{r}
 ktery <- 62
 
-zvukInfo <- mapa[ktery,] 
+zvukInfo <- mapa[ktery,]
 zvukDetail <- mapaZvuku[ktery]
 
 print(zvukInfo)
@@ -185,16 +186,68 @@ play(Wave(zvukDetail, samp.rate = zvukInfo$V2, bit = zvukInfo$V3))
 ### 7. Hledání slova
 ```{r}
 print(mapa)
-print(which(mapa$V1 == "survive"))
+print(which(is.na(mapa$V1)))
+```
+
+### 9. Prechodova matice
+
+
+```{r}
+
+maticePrechodu <- matrix(0, nrow = 2, ncol = 2)
+
+print(maticePrechodu)
+
+
+pocetPrechodu <- 0
+for (i in 1:length(files)) {
+  poleIndexu <- which(mapa$V4 == i)
+  #print(mapa[poleIndexu, 1]) # veta s useky
+  
+  #index(mapa, row = poleIndexu)
+  #print(paste("VETA", poleIndexu, sep = " "))
+  
+  for (i in 1:(length(poleIndexu) - 1)) {
+    prvniSlovo <- mapa[poleIndexu[i],1]
+    druheSlovo <- mapa[poleIndexu[i+1],1]
+    
+    # z ticha do slova
+    if (is.na(prvniSlovo) && !is.na(druheSlovo)) {
+      maticePrechodu[1,2] <- maticePrechodu[1,2] + 1
+    }
+    # z ticha do ticha
+    if (is.na(prvniSlovo) && is.na(druheSlovo)) {
+      maticePrechodu[1,1] <- maticePrechodu[1,1] + 1
+    }
+    # ze slova do slova
+    if (!is.na(prvniSlovo) && !is.na(druheSlovo)) {
+      maticePrechodu[2,2] <- maticePrechodu[2,2] + 1
+    }
+    # ze slova do ticha
+    if (is.na(prvniSlovo) && !is.na(druheSlovo)) {
+      maticePrechodu[2,1] <- maticePrechodu[2,1] + 1
+    }
+    
+    pocetPrechodu <- pocetPrechodu + 1
+  }
+  #for (a in mapa[poleIndexu, 1]) {
+    #print(a)
+  #}
+}
+
+print(maticePrechodu)
+maticePrechodu <- maticePrechodu/pocetPrechodu
+
+print(maticePrechodu)
 ```
 
 
 ### 8. Příprava HMM
 ```{r}
-hmm <- initHMM(c("HLAS","SUM"),c("H","S"), transProbs=matrix(c(.9,.1,.1,.9),2), emissionProbs=matrix(c(.5,.51,.5,.49),2))
+hmm <- initHMM(c("HLAS","SUM"),c("H","S"), transProbs=maticePrechodu, emissionProbs=matrix(c(.5,.51,.5,.49),2))
 print(hmm)
 ```
 
-rozsekat
+
 namapovat
 natrenovat
