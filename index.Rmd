@@ -170,11 +170,13 @@ for (i in 1:length(files)) {
     index <- index + 1
   }
 }
+
+print(mapa)
 ```
 
 ### 6. Výběr náhodného úseku a práce s ním (přehrání úseku)
 ```{r}
-ktery <- 62
+ktery <- 63
 
 zvukInfo <- mapa[ktery,]
 zvukDetail <- mapaZvuku[ktery]
@@ -190,64 +192,96 @@ print(which(is.na(mapa$V1)))
 ```
 
 ### 9. Prechodova matice
-
+Difinuji si matici přechodu mezi stavy HLAS a TICHO.
+Jaká je pravděpodobnost přechodu ze stavu do stavu
+1 TICHO
+2 HLAS
 
 ```{r}
-
 maticePrechodu <- matrix(0, nrow = 2, ncol = 2)
-
-print(maticePrechodu)
-
 
 pocetPrechodu <- 0
 for (i in 1:length(files)) {
   poleIndexu <- which(mapa$V4 == i)
-  #print(mapa[poleIndexu, 1]) # veta s useky
-  
-  #index(mapa, row = poleIndexu)
-  #print(paste("VETA", poleIndexu, sep = " "))
-  
+
   for (i in 1:(length(poleIndexu) - 1)) {
     prvniSlovo <- mapa[poleIndexu[i],1]
     druheSlovo <- mapa[poleIndexu[i+1],1]
     
-    # z ticha do slova
-    if (is.na(prvniSlovo) && !is.na(druheSlovo)) {
-      maticePrechodu[1,2] <- maticePrechodu[1,2] + 1
-    }
     # z ticha do ticha
     if (is.na(prvniSlovo) && is.na(druheSlovo)) {
       maticePrechodu[1,1] <- maticePrechodu[1,1] + 1
     }
-    # ze slova do slova
-    if (!is.na(prvniSlovo) && !is.na(druheSlovo)) {
-      maticePrechodu[2,2] <- maticePrechodu[2,2] + 1
+    # z ticha do hlasu
+    if (is.na(prvniSlovo) && !is.na(druheSlovo)) {
+      maticePrechodu[1,2] <- maticePrechodu[1,2] + 1
     }
     # ze slova do ticha
     if (is.na(prvniSlovo) && !is.na(druheSlovo)) {
       maticePrechodu[2,1] <- maticePrechodu[2,1] + 1
     }
+    # ze slova do slova
+    if (!is.na(prvniSlovo) && !is.na(druheSlovo)) {
+      maticePrechodu[2,2] <- maticePrechodu[2,2] + 1
+    }
     
     pocetPrechodu <- pocetPrechodu + 1
   }
-  #for (a in mapa[poleIndexu, 1]) {
-    #print(a)
-  #}
 }
 
-print(maticePrechodu)
 maticePrechodu <- maticePrechodu/pocetPrechodu
-
 print(maticePrechodu)
 ```
 
+### Rozdělení zvukových částí do clusterů
+Zkategorizuji části úseků do clusteru pomocí metody kmeans
+
+```{r}
+# udelam si matici z listu zvuku
+maticeZvuku <- matrix(unlist(mapaZvuku), ncol = length(mapaZvuku[[1]]), byrow = TRUE)
+
+pocetClusteru <- 64
+
+# mean shift zkusit - nepotrebuje pocet centers
+# pomoci K-mean rozdelim zvukove casti do "kategorii" Slova co jsou si podobna dam k sobe
+clusters <- kmeans(output, centers = pocetClusteru, iter.max = 1000)
+print(clusters$cluster)
+
+maticePravdepodobnostiVystupu <- matrix(0, ncol = pocetClusteru, nrow = 2)
+
+castIndex <- 1
+for (c in clusters$cluster) {
+  mluvi <- mapa[castIndex,1]
+  
+  if (is.na(mluvi)) {
+    maticePravdepodobnostiVystupu[1, c] <- maticePravdepodobnostiVystupu[1, c] + 1 
+  } else {
+    maticePravdepodobnostiVystupu[2, c] <- maticePravdepodobnostiVystupu[2, c] + 1
+  }
+  castIndex <- castIndex + 1
+}
+
+maticePravdepodobnostiVystupu <- maticePravdepodobnostiVystupu / castIndex
+print(maticePravdepodobnostiVystupu)
+```
 
 ### 8. Příprava HMM
+Ticho = 0
+HLAS = 1
+
 ```{r}
-hmm <- initHMM(c("HLAS","SUM"),c("H","S"), transProbs=maticePrechodu, emissionProbs=matrix(c(.5,.51,.5,.49),2))
+hmm <- initHMM(c("0","1"), Symbols = 1:pocetClusteru, transProbs=maticePrechodu, emissionProbs=maticePravdepodobnostiVystupu)
 print(hmm)
 ```
 
+### 9. viterbi 
+```{r}
+viter <- viterbi(hmm, c(5,5,9,9,31,1,1,1,58,1)) #clusters$cluster[1:80]
+print(viter)
 
-namapovat
-natrenovat
+# vykreslit grafik
+stopa <- as.integer(viter)
+print(stopa)
+plot(stopa, type="o", col="blue")
+```
+
