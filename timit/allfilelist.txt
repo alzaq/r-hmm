@@ -158,3 +158,4 @@ dr8-fbcg1/sx352
 dr8-fbcg1/si982
 dr8-fbcg1/si1612
 dr8-fbcg1/si2242
+nospeech
