@@ -198,8 +198,9 @@ print(mapa)
 print(which(is.na(mapa$V1)))
 ```
 
-### 8. Pčechodova matice
-Definuji si matici přechodu mezi stavy HLAS a TICHO. Jaká je pravděpodobnost přechodu ze stavu do stavu.
+### 8. Matice přechodu
+Definuji si matici přechodu mezi stavy HLAS a TICHO. Jaká je pravděpodobnost přechodu ze stavu TICHO do stavu HLAS.
+
 1 TICHO
 2 HLAS
 
@@ -302,8 +303,7 @@ plot(song)
 # vykreslit
 stopa <- as.integer(viter)
 print(stopa)
-plot(stopa, type="o", col="blue")
-plot()
+plot(stopa, type="o", col="blue", xlab = "Čas (ms)", ylab = "TICHO                                          HLAS")
 ```
 
 ### Závěr
