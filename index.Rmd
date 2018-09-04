@@ -8,7 +8,7 @@ output:
   pdf_document: default
   word_document: default
 editor_options: 
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
 
 Závěrečná práce z předmětu Pokročilé metody statistiky. Práce byla vypracována ve vývojovém prostředí RStudio.
@@ -206,7 +206,9 @@ Definuji si matici přechodu mezi stavy HLAS a TICHO. Jaká je pravděpodobnost 
 ```{r}
 maticePrechodu <- matrix(0, nrow = 2, ncol = 2)
 
-pocetPrechodu <- 0
+pocetPrechoduZ1 <- 0
+pocetPrechodu2 <- 0
+
 for (i in 1:length(files)) {
   poleIndexu <- which(mapa$V4 == i)
 
@@ -217,25 +219,29 @@ for (i in 1:length(files)) {
     # z ticha do ticha
     if (is.na(prvniSlovo) && is.na(druheSlovo)) {
       maticePrechodu[1,1] <- maticePrechodu[1,1] + 1
+      pocetPrechoduZ1 <- pocetPrechoduZ1 + 1
     }
     # z ticha do hlasu
     if (is.na(prvniSlovo) && !is.na(druheSlovo)) {
       maticePrechodu[1,2] <- maticePrechodu[1,2] + 1
+      pocetPrechoduZ1 <- pocetPrechoduZ1 + 1
     }
     # ze slova do ticha
     if (is.na(prvniSlovo) && !is.na(druheSlovo)) {
       maticePrechodu[2,1] <- maticePrechodu[2,1] + 1
+      pocetPrechoduZ2 <- pocetPrechoduZ2 + 1
     }
     # ze slova do slova
     if (!is.na(prvniSlovo) && !is.na(druheSlovo)) {
       maticePrechodu[2,2] <- maticePrechodu[2,2] + 1
+      pocetPrechoduZ2 <- pocetPrechoduZ2 + 1
     }
     
-    pocetPrechodu <- pocetPrechodu + 1
   }
 }
 
-maticePrechodu <- maticePrechodu/pocetPrechodu
+maticePrechodu[1,] <- maticePrechodu[1,]/pocetPrechoduZ1
+maticePrechodu[2,] <- maticePrechodu[2,]/pocetPrechoduZ2
 print(maticePrechodu)
 ```
 
@@ -246,7 +252,7 @@ Zkategorizuji části úseků do clusteru pomocí metody kmeans
 # udelam si matici z listu zvuku
 maticeZvuku <- matrix(unlist(mapaZvuku), ncol = length(mapaZvuku[[1]]), byrow = TRUE)
 
-pocetClusteru <- 2
+pocetClusteru <- 16
 
 # mean shift zkusit - nepotrebuje pocet centers
 # pomoci K-mean rozdelim zvukove casti do "kategorii" Slova co jsou si podobna dam k sobe
@@ -255,19 +261,25 @@ print(clusters$cluster)
 
 maticePravdepodobnostiVystupu <- matrix(0, ncol = pocetClusteru, nrow = 2)
 
-castIndex <- 1
+castIndex1 <- 1
+
+pocetCluster1 <- 0
+pocetCluster2 <- 0
 for (c in clusters$cluster) {
   mluvi <- mapa[castIndex,1]
   
   if (is.na(mluvi)) {
     maticePravdepodobnostiVystupu[1, c] <- maticePravdepodobnostiVystupu[1, c] + 1 
+    pocetCluster1 <- pocetCluster1 + 1
   } else {
     maticePravdepodobnostiVystupu[2, c] <- maticePravdepodobnostiVystupu[2, c] + 1
+    pocetCluster2 <- pocetCluster2 + 1
   }
   castIndex <- castIndex + 1
 }
 
-maticePravdepodobnostiVystupu <- maticePravdepodobnostiVystupu / castIndex
+maticePravdepodobnostiVystupu[1,] <- maticePravdepodobnostiVystupu[1,] / pocetCluster1
+maticePravdepodobnostiVystupu[2,] <- maticePravdepodobnostiVystupu[2,] / pocetCluster2
 print(maticePravdepodobnostiVystupu)
 ```
 
@@ -282,8 +294,9 @@ Tento algoritmus slouží k vyhledání maximálně pravděpodobné sekvence sta
 Hledání požadované sekvence stavů si lze představit jako hledání cesty v mřížce. Na svislé ose jsou vyneseny jednotlivé stavy Markovova modelu a na vodorovné ose jsou časové úseky 1,...,T.
 
 ```{r}
-viter <- viterbi(hmm, clusters$cluster[1:8000]) #clusters$cluster[1:80]
+viter <- viterbi(hmm, clusters$cluster[1:9000]) #clusters$cluster[1:80]
 print(viter)
+
 
 # vykreslit
 stopa <- as.integer(viter)
@@ -293,3 +306,6 @@ plot(stopa, type="o", col="blue")
 
 ### Závěr
 V práci byla prezentována implementace řečového detektoru založeného na statistickém modelování za pomocí metody Hidden Markov Models.
+Prototyp nevrací použitelné výsledky. V dalším kroku je nutné využít lepší trénovací data, která budou obsahovat více zvukových úseků bez mluvené řeči.
+Výsledkem druhé fáze by měla bát funkce, která dokáže vracet výsledek jako je na následujícím obrázku.
+
