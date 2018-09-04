@@ -1,7 +1,18 @@
 ---
 title: "Detekce mluvené řeči v jazyce R"
-output: html_notebook
+output:
+  html_notebook: 
+    fig_caption: yes
+  html_document:
+    df_print: paged
+  pdf_document: default
+  word_document: default
+editor_options: 
+  chunk_output_type: console
 ---
+
+Závěrečná práce z předmětu Pokročilé metody statistiky. Práce byla vypracována ve vývojovém prostředí RStudio.
+
 ### Prototyp chytrého řešení pro pomoc lidem se sluchovým postižením
 
 Detekce řečové aktivity hraje velmi důležitou roli v oblasti zpracování mluvené řeči. Detektory řečové aktivity jsou využívány v mnoha různých oblastech vědy, ale dnes i v průmyslových aplikacích. Detektory řečové aktivity jsou používány v průběhu rozpoznávání řeči nebo v algoritmech zvýrazňování řeči. Jiné aplikace mohou být z oblasti komunikace. Podobný přístup řeší VoIP, kde detektory řečové aktivity slouží pro snížení nutné přenosové kapacity. To je dosaženo nepřenášením paketů obsahujících ticho. Bylo také ukázáno, že detektory řečové aktivity mohou přispět k zvětšení efektivity rozpoznávání řeči.
@@ -23,10 +34,10 @@ Detekce probíhá na základě modelování částí řeči pomocí jednoho nebo
 ### Práce s jazykem R
 Pro práci se zvukovými stopami jsou využívány knihovny
 
-- audio,
-- TuneR,
-- SeeWave,
-- HMM
+- **audio** (rozhraní pro zvuková zařízení umožňuje přehrávání zvukové stopy),
+- **TuneR** (knihovna dokáže analyzovat hudbu a řeč, dokáže pracovat s různými typy zvukových souborů, jako např. mp3, midi, wav),
+- **SeeWave** (knihovna nabízí funkce pro analýzu, manipulaci, zobrazení, editování a syntézu zvuku),
+- **HMM** (knihovna určená k nastavení, aplikování a vyvozování závěrů pomocí Skrytých Markovových modelů).
 
 ```{r}
 install.packages("audio")
@@ -49,34 +60,30 @@ play(song)
 ```
 
 Pokud vznikl u přehrávání problém je nutné vykonat následující příkaz.
-Jedná se ochybu `Error in play.default(zvuk) : long vectors not supported yet: au.c:137`
-
-Jedná se o využití výchozího zvukového přehrávače.
+Jedná se ochybu ``Error in play.default(zvuk) : long vectors not supported yet: au.c:137``
 ```{r}
 setWavPlayer('/usr/bin/afplay')
 ```
+Jedná se o využití výchozího zvukového přehrávače. V případě MacOS je možné přenastavit takto.
 
+Klasické vykreslení jedná zvukové křivky o délce 3,5s.
 ```{r}
-plot(song)
+plot(song, xlab = "Čas (ms)", ylab = "Frekvence (Hz)")
 ```
+
+Vypsání definice objektu zvukové stopy.
 ```{r}
 print(song)
 ```
 
+Funkce vykresluje frekvenční spekturum (relativní amplituda různých frekvencí).
 ```{r}
-spec(song)
+spec(song, alab = "Amplitude", flab = "Frekvence (kHz)")
 ```
 
+Spectrogram obohacený o decibely.
 ```{r}
-spectro(song)
-```
-
-```{r}
-timer(song)
-```
-
-```{r}
-oscillo(song)
+spectro(song, flab = "Frekvence (kHz)")
 ```
 
 ### Databáze řeči TIMIT
@@ -95,9 +102,9 @@ TIMIT Acoustic-Phonetic Continous Speech Corpus (LDC) je databáze čtené řeč
 - .PHM - od do phoném
 - .TXT - od do věta
 
-## Postup implementace
+## Postup implementace algoritmu pro detekci mluvené řeči ve zvukové stopě
 
-### 1. Projít databázi TIMIT a načíst, zvuk + informace o stopě
+### 1. Je nutné projít databázi TIMIT a načíst zvuk + informace o stopě
 ```{r}
 path <- "./timit"
 files <- read.csv(paste(path, "allfilelist.txt", sep = "/"), header=FALSE)$V1
@@ -139,15 +146,15 @@ divideText <- function(sound, text, stepInMs = 1000) {
 }
 ```
 
-### 4. Definice mapy a mapyZvuku
+### 4. Definice samotné mapy a mapyZvuku
 ```{r}
 mapa <- data.frame()
 mapaZvuku <- list()
 ```
 
-### 5. Definice délky kroku v milisekundách + rozdělení veěkerých informací a zvukových stop na slova a krátké zvukové úseky
+### 5. Definice délky kroku v milisekundách + rozdělení veškerých informací a zvukových stop na slova a krátké zvukové úseky
 ```{r}
-step <- 50
+step <- 20
 index <- 1
 
 for (i in 1:length(files)) {
@@ -191,9 +198,8 @@ print(mapa)
 print(which(is.na(mapa$V1)))
 ```
 
-### 9. Prechodova matice
-Difinuji si matici přechodu mezi stavy HLAS a TICHO.
-Jaká je pravděpodobnost přechodu ze stavu do stavu
+### 8. Pčechodova matice
+Definuji si matici přechodu mezi stavy HLAS a TICHO. Jaká je pravděpodobnost přechodu ze stavu do stavu.
 1 TICHO
 2 HLAS
 
@@ -233,18 +239,18 @@ maticePrechodu <- maticePrechodu/pocetPrechodu
 print(maticePrechodu)
 ```
 
-### Rozdělení zvukových částí do clusterů
+### 9. Rozdělení zvukových částí do clusterů
 Zkategorizuji části úseků do clusteru pomocí metody kmeans
 
 ```{r}
 # udelam si matici z listu zvuku
 maticeZvuku <- matrix(unlist(mapaZvuku), ncol = length(mapaZvuku[[1]]), byrow = TRUE)
 
-pocetClusteru <- 64
+pocetClusteru <- 2
 
 # mean shift zkusit - nepotrebuje pocet centers
 # pomoci K-mean rozdelim zvukove casti do "kategorii" Slova co jsou si podobna dam k sobe
-clusters <- kmeans(output, centers = pocetClusteru, iter.max = 1000)
+clusters <- kmeans(output, centers = pocetClusteru, iter.max = 5000)
 print(clusters$cluster)
 
 maticePravdepodobnostiVystupu <- matrix(0, ncol = pocetClusteru, nrow = 2)
@@ -265,23 +271,25 @@ maticePravdepodobnostiVystupu <- maticePravdepodobnostiVystupu / castIndex
 print(maticePravdepodobnostiVystupu)
 ```
 
-### 8. Příprava HMM
-Ticho = 0
-HLAS = 1
-
+### 10. Příprava modelu HMM
 ```{r}
 hmm <- initHMM(c("0","1"), Symbols = 1:pocetClusteru, transProbs=maticePrechodu, emissionProbs=maticePravdepodobnostiVystupu)
 print(hmm)
 ```
 
-### 9. viterbi 
+### 11. Viterbi algoritmus
+Tento algoritmus slouží k vyhledání maximálně pravděpodobné sekvence stavů modelu M, která generovala pozorování P, a také k výpočtu její pravděpodobnosti. Definujme pravděpodobnost cesty modelem, která vychází z počá tečního stavu a končí ve stavu j v čase t a přitom generuje řečové vektory p1, . . . , pt.
+Hledání požadované sekvence stavů si lze představit jako hledání cesty v mřížce. Na svislé ose jsou vyneseny jednotlivé stavy Markovova modelu a na vodorovné ose jsou časové úseky 1,...,T.
+
 ```{r}
-viter <- viterbi(hmm, c(5,5,9,9,31,1,1,1,58,1)) #clusters$cluster[1:80]
+viter <- viterbi(hmm, clusters$cluster[1:8000]) #clusters$cluster[1:80]
 print(viter)
 
-# vykreslit grafik
+# vykreslit
 stopa <- as.integer(viter)
 print(stopa)
 plot(stopa, type="o", col="blue")
 ```
 
+### Závěr
+V práci byla prezentována implementace řečového detektoru založeného na statistickém modelování za pomocí metody Hidden Markov Models.
