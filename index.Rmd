@@ -207,7 +207,7 @@ Definuji si matici přechodu mezi stavy HLAS a TICHO. Jaká je pravděpodobnost 
 maticePrechodu <- matrix(0, nrow = 2, ncol = 2)
 
 pocetPrechoduZ1 <- 0
-pocetPrechodu2 <- 0
+pocetPrechoduZ2 <- 0
 
 for (i in 1:length(files)) {
   poleIndexu <- which(mapa$V4 == i)
@@ -297,11 +297,13 @@ Hledání požadované sekvence stavů si lze představit jako hledání cesty v
 viter <- viterbi(hmm, clusters$cluster[1:9000]) #clusters$cluster[1:80]
 print(viter)
 
+plot(song)
 
 # vykreslit
 stopa <- as.integer(viter)
 print(stopa)
 plot(stopa, type="o", col="blue")
+plot()
 ```
 
 ### Závěr
